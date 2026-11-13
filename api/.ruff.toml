@@ -1,0 +1,4 @@
+extend-exclude = ["migrations"]
+
+[lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]

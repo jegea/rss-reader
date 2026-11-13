@@ -1,0 +1,53 @@
+# --- General ---
+__pycache__/
+*.py[cod]
+*.log
+*.tmp
+*.swp
+*.bak
+
+# --- Virtual environments ---
+.venv/
+env/
+venv/
+
+# --- OS / Editor files ---
+.DS_Store
+.vscode/
+.idea/
+
+# --- Temporary and cache directories ---
+tmp/*.*
+!tmp/.gitkeep
+.cache/
+data/derived/
+data/__pycache__/
+*.sqlite
+*.db
+
+# --- Environment variables ---
+.env
+.env.*
+!.env.example
+!.env.test
+
+# --- Docker ---
+*.pid
+*.pid.lock
+docker-compose.override.yml
+
+# --- Tests and coverage ---
+.coverage
+htmlcov/
+.tox/
+pytest_cache/
+.pytest_cache/
+.ruff_cache/
+
+# --- Project-specific ---
+logs/
+outputs/
+*.jsonl
+*.log
+tree.txt
+
