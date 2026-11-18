@@ -10,7 +10,9 @@ import {
 } from './api/articles'
 import {
   createCategory,
+  deleteCategory,
   listCategories,
+  updateCategory,
   type Category,
 } from './api/categories'
 import {
@@ -263,6 +265,49 @@ function App() {
     return newSource
   }
 
+  const handleUpdateCategory = async (
+    id: string,
+    name: string,
+  ): Promise<Category> => {
+    const updatedCategory = await updateCategory(id, name)
+
+    setCategories((current) =>
+      current
+        .map((category) =>
+          category.id === id ? updatedCategory : category,
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    )
+
+    return updatedCategory
+  }
+
+  const handleDeleteCategory = async (id: string): Promise<void> => {
+    const categorySourceIds = new Set(
+      sources
+        .filter((source) => source.category_id === id)
+        .map((source) => source.id),
+    )
+
+    await deleteCategory(id)
+
+    setCategories((current) =>
+      current.filter((category) => category.id !== id),
+    )
+
+    setSources((current) =>
+      current.filter((source) => source.category_id !== id),
+    )
+
+    if (
+      selectedItem === `category:${id}` ||
+      (selectedItem.startsWith('feed:') &&
+        categorySourceIds.has(selectedItem.slice('feed:'.length)))
+    ) {
+      setSelectedItem('all')
+    }
+  }
+
   const updateArticleState = async (
     articleId: string,
     changes: Partial<Pick<Article, 'is_read' | 'is_starred'>>,
@@ -347,6 +392,8 @@ function App() {
       sources={sources}
       onAddCategory={handleAddCategory}
       onAddFeed={handleAddFeed}
+      onUpdateCategory={handleUpdateCategory}
+      onDeleteCategory={handleDeleteCategory}
     >
       <div className="px-8 py-7">
         <div className="mb-5 w-full">

@@ -37,5 +37,6 @@ class Category(Base):
 
     sources: Mapped[list["Source"]] = relationship(
         back_populates="category",
+        cascade="all, delete",
         passive_deletes=True,
     )

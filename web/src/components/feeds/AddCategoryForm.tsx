@@ -1,15 +1,19 @@
 import { useState, type SubmitEvent } from 'react'
 
 type AddCategoryFormProps = {
+  initialName?: string
+  submitLabel?: string
   onCancel: () => void
   onSubmit: (name: string) => Promise<void>
 }
 
 function AddCategoryForm({
+  initialName = '',
+  submitLabel = 'Create',
   onCancel,
   onSubmit,
 }: AddCategoryFormProps) {
-  const [name, setName] = useState('')
+  const [name, setName] = useState(initialName)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -29,7 +33,7 @@ function AddCategoryForm({
       setError(
         submitError instanceof Error
           ? submitError.message
-          : 'Could not create the category. Please try again.',
+          : 'Could not save the category. Please try again.',
       )
     } finally {
       setIsSubmitting(false)
@@ -80,7 +84,7 @@ function AddCategoryForm({
           disabled={!name.trim() || isSubmitting}
           className="h-8 rounded-md bg-primary px-3 text-sm text-primary-foreground hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
         >
-          {isSubmitting ? 'Creating…' : 'Create'}
+          {isSubmitting ? 'Saving…' : submitLabel}
         </button>
       </div>
     </form>

@@ -18,3 +18,19 @@ export function createCategory(name: string) {
     body: JSON.stringify({ name }),
   })
 }
+
+export function updateCategory(id: string, name: string) {
+  return request<Category>(`/categories/${id}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function deleteCategory(id: string) {
+  return request<void>(`/categories/${id}`, {
+    method: 'DELETE',
+  })
+}

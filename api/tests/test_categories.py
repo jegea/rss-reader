@@ -1,4 +1,10 @@
+from uuid import UUID
+
 from uuid6 import uuid7
+
+from app.models.article import Article
+from app.models.category import Category
+from app.models.source import Source
 
 
 def test_create_category(client) -> None:
@@ -230,3 +236,110 @@ def test_update_category_trims_whitespace(client) -> None:
     assert response.json()["name"] == "Science"
 
 
+def test_delete_category(client) -> None:
+    create_response = client.post(
+        "/api/categories",
+        json={"name": "Technology"},
+    )
+
+    category_id = create_response.json()["id"]
+
+    response = client.delete(f"/api/categories/{category_id}")
+
+    assert response.status_code == 204
+    assert response.content == b""
+
+    get_response = client.get(f"/api/categories/{category_id}")
+
+    assert get_response.status_code == 404
+
+
+def test_delete_nonexistent_category(client) -> None:
+    category_id = uuid7()
+
+    response = client.delete(f"/api/categories/{category_id}")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Category not found"}
+
+
+def test_delete_category_with_sources_and_articles(
+    client,
+    db_session,
+) -> None:
+    category_response = client.post(
+        "/api/categories",
+        json={"name": "Technology"},
+    )
+
+    category_id = UUID(category_response.json()["id"])
+
+    source_1 = Source(
+        name="Tech Source A",
+        url="https://example.com/tech-a.xml",
+        category_id=category_id,
+    )
+    source_2 = Source(
+        name="Tech Source B",
+        url="https://example.com/tech-b.xml",
+        category_id=category_id,
+    )
+    unassigned_source = Source(
+        name="Unassigned Source",
+        url="https://example.com/unassigned.xml",
+    )
+
+    db_session.add_all([
+        source_1,
+        source_2,
+        unassigned_source,
+    ])
+    db_session.flush()
+
+    article_1 = Article(
+        source_id=source_1.id,
+        title="First technology article",
+        url="https://example.com/article-1",
+    )
+    article_2 = Article(
+        source_id=source_2.id,
+        title="Second technology article",
+        url="https://example.com/article-2",
+    )
+    unassigned_article = Article(
+        source_id=unassigned_source.id,
+        title="Unassigned article",
+        url="https://example.com/article-3",
+    )
+
+    db_session.add_all([
+        article_1,
+        article_2,
+        unassigned_article,
+    ])
+    db_session.commit()
+
+    source_ids = [source_1.id, source_2.id]
+    article_ids = [article_1.id, article_2.id]
+    unassigned_source_id = unassigned_source.id
+    unassigned_article_id = unassigned_article.id
+
+    # Ensure the category relationship is not loaded.
+    db_session.expire_all()
+
+    response = client.delete(f"/api/categories/{category_id}")
+
+    assert response.status_code == 204
+
+    db_session.expire_all()
+
+    assert db_session.get(Category, category_id) is None
+
+    for source_id in source_ids:
+        assert db_session.get(Source, source_id) is None
+
+    for article_id in article_ids:
+        assert db_session.get(Article, article_id) is None
+
+    assert db_session.get(Source, unassigned_source_id) is not None
+    assert db_session.get(Article, unassigned_article_id) is not None

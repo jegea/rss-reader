@@ -2,11 +2,14 @@ import {
   ChevronRight,
   Folder,
   Inbox,
+  MoreHorizontal,
+  Pencil,
   Plus,
   Search,
   Settings2,
   Sparkles,
   Star,
+  Trash2,
 } from 'lucide-react'
 
 import {
@@ -60,6 +63,8 @@ type AppSidebarProps = {
   sources: Source[]
   onAddCategory: (name: string) => Promise<Category>
   onAddFeed: (url: string, categoryId: string | null) => Promise<Source>
+  onUpdateCategory: (id: string, name: string) => Promise<Category>
+  onDeleteCategory: (id: string) => Promise<void>
 }
 
 function AppSidebar({
@@ -69,10 +74,42 @@ function AppSidebar({
   sources,
   onAddCategory,
   onAddFeed,
+  onDeleteCategory,
+  onUpdateCategory,
 }: AppSidebarProps) {
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isAddFeedDialogOpen, setIsAddFeedDialogOpen] = useState(false)
   const [isAddPopoverOpen, setIsAddPopoverOpen] = useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false)
+
+  const deletingCategory = categories.find(
+    (category) => category.id === deletingCategoryId,
+  )
+
+  const handleConfirmDeleteCategory = async () => {
+    if (!deletingCategoryId || isDeletingCategory) return
+
+    setIsDeletingCategory(true)
+    setDeleteError(null)
+
+    try {
+      await onDeleteCategory(deletingCategoryId)
+      setDeletingCategoryId(null)
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : 'Could not delete the category. Please try again.',
+      )
+    } finally {
+      setIsDeletingCategory(false)
+    }
+  }
 
   return (
     <Sidebar>
@@ -226,6 +263,87 @@ function AppSidebar({
             </Dialog>
 
             <Dialog
+              open={isEditDialogOpen}
+              onOpenChange={setIsEditDialogOpen}
+            >
+              <DialogContent className="w-[calc(100%-2rem)] max-w-md p-6">
+                <DialogHeader>
+                  <DialogTitle>Rename Category</DialogTitle>
+                  <DialogDescription>
+                    Change the name of this category.
+                  </DialogDescription>
+                </DialogHeader>
+
+                {categories
+                  .filter((category) => category.id === editingCategoryId)
+                  .map((category) => (
+                    <AddCategoryForm
+                      key={category.id}
+                      initialName={category.name}
+                      submitLabel="Save changes"
+                      onCancel={() => setIsEditDialogOpen(false)}
+                      onSubmit={async (name) => {
+                        await onUpdateCategory(category.id, name)
+                        setIsEditDialogOpen(false)
+                      }}
+                    />
+                  ))}
+              </DialogContent>
+            </Dialog>
+
+            <Dialog
+              open={deletingCategoryId !== null}
+              onOpenChange={(open: boolean) => {
+                if (!open && !isDeletingCategory) {
+                  setDeletingCategoryId(null)
+                  setDeleteError(null)
+                }
+              }}
+            >
+              <DialogContent className="w-[calc(100%-2rem)] max-w-md p-6">
+                <DialogHeader>
+                  <DialogTitle>Delete Category</DialogTitle>
+                  <DialogDescription>
+                    <p>Are you sure you want to delete{' '}
+                    <strong>{deletingCategory?.name}</strong>?</p>
+                    <p>This will permanently delete all feeds assigned to this
+                    category and all articles.</p>
+                    <p><strong>This action cannot be undone.</strong></p>
+                  </DialogDescription>
+                </DialogHeader>
+
+                {deleteError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {deleteError}
+                  </p>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={isDeletingCategory}
+                    onClick={() => {
+                      setDeletingCategoryId(null)
+                      setDeleteError(null)
+                    }}
+                    className="rounded-md border px-4 py-2 text-sm hover:bg-accent disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isDeletingCategory || !deletingCategory}
+                    onClick={handleConfirmDeleteCategory}
+                    className="rounded-md bg-gray-800 px-4 py-2 text-sm text-white hover:bg-gray/70 disabled:opacity-50"
+                  >
+                    {isDeletingCategory ? 'Deleting…' : 'Delete category'}
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog
               open={isAddFeedDialogOpen}
               onOpenChange={setIsAddFeedDialogOpen}
             >
@@ -239,6 +357,7 @@ function AppSidebar({
 
                 <AddFeedForm
                   categories={categories}
+                  initialCategoryId={selectedCategoryId}
                   onCancel={() => setIsAddFeedDialogOpen(false)}
                   onSubmit={async (url, categoryId) => {
                     await onAddFeed(url, categoryId)
@@ -261,16 +380,76 @@ function AppSidebar({
                   className="group/collapsible"
                 >
                   <SidebarMenuItem>
-                    <SidebarMenuButton
-                      isActive={selectedItem === `category:${category.id}`}
-                      onClick={() => onSelectItem(`category:${category.id}`)}
-                    >
-                      <Folder />
-                      <span>{category.name}</span>
-                    </SidebarMenuButton>
+                    <div className="group/category relative">
+                      <SidebarMenuButton
+                        isActive={selectedItem === `category:${category.id}`}
+                        onClick={() => onSelectItem(`category:${category.id}`)}
+                        className="pr-24"
+                      >
+                        <Folder />
+                        <span className="min-w-0 flex-1 truncate">
+                          {category.name}
+                        </span>
+                      </SidebarMenuButton>
 
-                    {categoryFeeds.length > 0 && (
-                      <>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label={`Manage ${category.name}`}
+                            className={`absolute right-16 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-sidebar-foreground/70 opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-hover/category:opacity-100`}
+                          >
+                            <MoreHorizontal className="size-4" />
+                          </button>
+                        </PopoverTrigger>
+
+                        <PopoverContent
+                          align="end"
+                          side="right"
+                          sideOffset={8}
+                          className="w-48 p-1"
+                        >
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCategoryId(category.id)
+                                setIsEditDialogOpen(true)
+                              }}
+                              className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-accent"
+                            >
+                              <Pencil className="size-4" />
+                              <span>Rename category</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteError(null)
+                                setDeletingCategoryId(category.id)
+                              }}
+                              className="flex items-center gap-2 rounded-md px-2 py-2 text-left text-sm text-destructive hover:bg-accent"
+                            >
+                              <Trash2 className="size-4" />
+                              <span>Delete category</span>
+                            </button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+
+                      <button
+                        type="button"
+                        aria-label={`Add feed to ${category.name}`}
+                        onClick={() => {
+                          setSelectedCategoryId(category.id)
+                          setIsAddFeedDialogOpen(true)
+                        }}
+                        className={`absolute right-8 top-1/2 z-10 flex size-7 -translate-y-1/2 items-center justify-center rounded-md text-sidebar-foreground/70 opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring group-hover/category:opacity-100`}
+                      >
+                        <Plus className="size-4" />
+                      </button>
+
+                      {categoryFeeds.length > 0 && (
                         <CollapsibleTrigger asChild>
                           <SidebarMenuAction>
                             <ChevronRight className="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -279,22 +458,24 @@ function AppSidebar({
                             </span>
                           </SidebarMenuAction>
                         </CollapsibleTrigger>
+                      )}
+                    </div>
 
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            {categoryFeeds.map((source) => (
-                              <SidebarMenuSubItem key={source.id}>
-                                <SidebarMenuSubButton
-                                  isActive={selectedItem === `feed:${source.id}`}
-                                  onClick={() => onSelectItem(`feed:${source.id}`)}
-                                >
-                                  <span>{source.name}</span>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </>
+                    {categoryFeeds.length > 0 && (
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {categoryFeeds.map((source) => (
+                            <SidebarMenuSubItem key={source.id}>
+                              <SidebarMenuSubButton
+                                isActive={selectedItem === `feed:${source.id}`}
+                                onClick={() => onSelectItem(`feed:${source.id}`)}
+                              >
+                                <span>{source.name}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
                     )}
                   </SidebarMenuItem>
                 </Collapsible>

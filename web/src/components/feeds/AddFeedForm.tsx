@@ -5,17 +5,19 @@ import type { Category } from '@/api/categories'
 
 type AddFeedFormProps = {
   categories: Category[]
+  initialCategoryId?: string | null
   onCancel: () => void
   onSubmit: (url: string, categoryId: string | null) => Promise<void>
 }
 
 function AddFeedForm({
   categories,
+  initialCategoryId = null,
   onCancel,
   onSubmit,
 }: AddFeedFormProps) {
   const [url, setUrl] = useState('')
-  const [categoryId, setCategoryId] = useState('')
+  const [categoryId, setCategoryId] = useState(initialCategoryId ?? '')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

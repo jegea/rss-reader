@@ -96,11 +96,9 @@ The application runs inside Docker containers, so installing Python and Node.js 
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/jegea/rss-reader
 cd rss-reader
 ```
-
-Replace `<repository-url>` with the URL of your repository.
 
 ### 2. Configure environment variables
 

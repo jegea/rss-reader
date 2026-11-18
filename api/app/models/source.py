@@ -33,7 +33,7 @@ class Source(Base):
         nullable=False,
     )
     category_id: Mapped[UUID | None] = mapped_column(
-        ForeignKey("categories.id", ondelete="SET NULL"),
+        ForeignKey("categories.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
