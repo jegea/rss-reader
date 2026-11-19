@@ -18,6 +18,8 @@ import {
 import {
   createSource,
   listSources,
+  updateSource,
+  deleteSource,
   type Source,
 } from './api/sources'
 
@@ -36,6 +38,7 @@ function App() {
   const [categories, setCategories] = useState<Category[]>([])
   const [sources, setSources] = useState<Source[]>([])
   
+  const [articleRefreshKey, setArticleRefreshKey] = useState(0)
   const [articlePage, setArticlePage] = useState<ArticlePage | null>(null)
   const [appError, setAppError] = useState<string | null>(null)
   const [loadingMoreFilterKey, setLoadingMoreFilterKey] = useState<string | null>(null)
@@ -106,6 +109,7 @@ function App() {
 
   const filterKey = JSON.stringify({
     selectedItem,
+    articleRefreshKey,
     ...articleFilters,
   })
 
@@ -265,6 +269,48 @@ function App() {
     return newSource
   }
 
+  const handleUpdateFeed = async (
+    id: string,
+    changes: Partial<Pick<Source, 'name' | 'category_id'>>,
+  ): Promise<Source> => {
+    const previousSource = sources.find((source) => source.id === id)
+
+    const updatedSource = await updateSource(id, changes)
+
+    setSources((current) =>
+      current
+        .map((source) =>
+          source.id === id ? updatedSource : source,
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    )
+
+    if (
+      previousSource &&
+      previousSource.category_id !== updatedSource.category_id &&
+      (selectedItem === `category:${previousSource.category_id}` ||
+        selectedItem === `category:${updatedSource.category_id}`)
+    ) {
+      setArticleRefreshKey((current) => current + 1)
+    }
+
+    return updatedSource
+  }
+
+  const handleDeleteFeed = async (id: string): Promise<void> => {
+    await deleteSource(id)
+
+    setSources((current) =>
+      current.filter((source) => source.id !== id),
+    )
+
+    if (selectedItem === `feed:${id}`) {
+      setSelectedItem('all')
+    } else if (selectedItem !== 'search') {
+      setArticleRefreshKey((current) => current + 1)
+    }
+  }
+
   const handleUpdateCategory = async (
     id: string,
     name: string,
@@ -392,6 +438,8 @@ function App() {
       sources={sources}
       onAddCategory={handleAddCategory}
       onAddFeed={handleAddFeed}
+      onDeleteFeed={handleDeleteFeed}
+      onUpdateFeed={handleUpdateFeed}
       onUpdateCategory={handleUpdateCategory}
       onDeleteCategory={handleDeleteCategory}
     >

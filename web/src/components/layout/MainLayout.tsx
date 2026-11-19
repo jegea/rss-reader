@@ -18,6 +18,11 @@ type MainLayoutProps = {
   sources: Source[]
   onAddCategory: (name: string) => Promise<Category>
   onAddFeed: (url: string, categoryId: string | null) => Promise<Source>
+  onDeleteFeed: (id: string) => Promise<void>
+  onUpdateFeed: (
+    id: string,
+    changes: Partial<Pick<Source, 'name' | 'category_id'>>,
+  ) => Promise<Source>
   onDeleteCategory: (id: string) => Promise<void>
   onUpdateCategory: (id: string, name: string) => Promise<Category>
 }
@@ -32,6 +37,8 @@ function MainLayout({
   onAddFeed,
   onDeleteCategory,
   onUpdateCategory,
+  onDeleteFeed,
+  onUpdateFeed,
 }: MainLayoutProps) {
   return (
     <SidebarProvider>
@@ -44,6 +51,8 @@ function MainLayout({
         onAddFeed={onAddFeed}
         onDeleteCategory={onDeleteCategory}
         onUpdateCategory={onUpdateCategory}
+        onDeleteFeed={onDeleteFeed}
+        onUpdateFeed={onUpdateFeed}
       />
 
       <SidebarInset>
