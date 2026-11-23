@@ -2,20 +2,23 @@
 
 A self-hosted RSS reader built as a personal software development project.
 
+![RSS Reader screenshot](assets/screenshot.png)
+
 RSS Reader provides a simple interface for managing RSS feeds, organizing sources into categories, and keeping track of articles. The project is an ongoing initiative, with a focus on clean architecture, maintainability, security, and modern development practices.
 
 > **Project status:** Active development. Features, architecture, and documentation may evolve over time.
 
 ## Features
 
-- **Feed management:** Add and manage RSS/Atom feed sources.
-- **Category management:** Organize feeds into custom categories.
+- **Feed management:** Add, rename, move, and delete RSS/Atom feed sources.
+- **Category management:** Create, rename, and delete custom categories to organize feeds.
 - **Article reading:** Browse articles from subscribed sources.
-- **Reading status:** Mark articles as read or unread.
+- **Reading status:** Mark individual articles as read or unread.
 - **Bookmarks:** Mark articles as starred for later reference.
 - **Article details:** Read expanded article content within the application.
-- **Feed synchronization:** Retrieve and update articles from subscribed feeds.
-- **Filtering:** Browse articles by category, source, reading status, and starred status.
+- **Feed synchronization:** Manually synchronize all feeds, feeds belonging to a category, or an individual feed.
+- **Filtering and search:** Browse articles by category, source, reading status, and starred status, or search for specific content.
+- **Pagination:** Load articles incrementally to support larger article collections.
 
 ## Tech Stack
 
@@ -304,7 +307,7 @@ Current protections include:
 This is an ongoing project. Potential areas for future development include:
 
 - Improving article discovery and filtering.
-- Implementing pagination and more efficient article loading.
+- Implementing a bulk mark-as-read action.
 - Improving feed synchronization and error handling.
 - Expanding backend and frontend test coverage.
 - Improving accessibility and responsive design.
