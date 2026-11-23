@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import ArticleList from './components/articles/ArticleList'
 import MainLayout from './components/layout/MainLayout'
+import ViewHeader from './components/layout/ViewHeader'
+
+import { syncFeeds } from './api/sync'
 import {
   listArticles,
   updateArticle,
@@ -48,6 +51,13 @@ function App() {
   const [loadMoreError, setLoadMoreError] = useState<{
     filterKey: string
     message: string
+  } | null>(null)
+
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [syncNotice, setSyncNotice] = useState<{
+    selectedItem: string
+    message: string
+    isError: boolean
   } | null>(null)
 
   // Category dialogs
@@ -511,6 +521,44 @@ function App() {
     setDeletingFeedId(source.id)
   }
 
+  const handleRefresh = async () => {
+    if (isRefreshing) return
+
+    const params = selectedCategory
+      ? { category_id: selectedCategory.id }
+      : selectedSource
+        ? { source_id: selectedSource.id }
+        : {}
+
+    setIsRefreshing(true)
+    setSyncNotice(null)
+
+    try {
+      const response = await syncFeeds(params)
+
+      setArticleRefreshKey((current) => current + 1)
+
+      if (response.failed_sources > 0) {
+        setSyncNotice({
+          selectedItem,
+          message: `Synchronization completed, but ${response.failed_sources} feed(s) could not be updated.`,
+          isError: true,
+        })
+      }
+    } catch (error) {
+      setSyncNotice({
+        selectedItem,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Could not synchronize feeds. Please try again.',
+        isError: true,
+      })
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   const updateArticleState = async (
     articleId: string,
     changes: Partial<Pick<Article, 'is_read' | 'is_starred'>>,
@@ -604,11 +652,41 @@ function App() {
         onOpenDeleteFeed={handleOpenDeleteFeed}
       >
         <div className="px-8 py-7">
-          <div className="mb-5 w-full">
-            <h1 className="text-xl font-semibold tracking-tight">
-              {title}
-            </h1>
-          </div>
+          <ViewHeader
+            title={title}
+            type={
+              selectedCategory
+                ? 'category'
+                : selectedSource
+                  ? 'feed'
+                  : selectedItem === 'all'
+                    ? 'general'
+                    : 'filtered'
+            }
+            onAddFeed={
+              selectedCategory
+                ? () => handleOpenAddFeed(selectedCategory.id)
+                : undefined
+            }
+            category={selectedCategory}
+            source={selectedSource}
+            onRenameCategory={handleOpenRenameCategory}
+            onDeleteCategory={handleOpenDeleteCategory}
+            onRenameFeed={handleOpenRenameFeed}
+            onMoveFeed={handleOpenMoveFeed}
+            onDeleteFeed={handleOpenDeleteFeed}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
+          />
+
+          {syncNotice?.selectedItem === selectedItem && (
+            <p
+              role="alert"
+              className="mb-4 text-sm text-destructive"
+            >
+              {syncNotice.message}
+            </p>
+          )}
 
           {isLoading ? (
             <p className="text-sm text-muted-foreground">
