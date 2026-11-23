@@ -23,6 +23,9 @@ import {
   type Source,
 } from './api/sources'
 
+import FeedDialogs from './components/feeds/FeedDialogs'
+import CategoryDialogs from './components/categories/CategoryDialogs'
+
 const PAGE_SIZE = 30
 
 type ArticlePage = {
@@ -46,6 +49,30 @@ function App() {
     filterKey: string
     message: string
   } | null>(null)
+
+  // Category dialogs
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
+  const [isAddCategoryDialogOpen, setIsAddCategoryDialogOpen] = useState(false)
+  const [isEditCategoryDialogOpen, setIsEditCategoryDialogOpen] = useState(false)
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null)
+  const [categoryDeleteError, setCategoryDeleteError] = useState<string | null>(null)
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false)
+
+  // Feed dialogs
+  const [isAddFeedDialogOpen, setIsAddFeedDialogOpen] = useState(false)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
+  const [editingFeedId, setEditingFeedId] = useState<string | null>(null)
+  const [movingFeedId, setMovingFeedId] = useState<string | null>(null)
+  const [deletingFeedId, setDeletingFeedId] = useState<string | null>(null)
+  const [isEditFeedDialogOpen, setIsEditFeedDialogOpen] = useState(false)
+  const [isMoveFeedDialogOpen, setIsMoveFeedDialogOpen] = useState(false)
+  const [feedDeleteError, setFeedDeleteError] = useState<string | null>(null)
+  const [isDeletingFeed, setIsDeletingFeed] = useState(false)
+  const [feedName, setFeedName] = useState('')
+  const [isUpdatingFeed, setIsUpdatingFeed] = useState(false)
+  const [feedEditError, setFeedEditError] = useState<string | null>(null)
+  const [targetCategoryId, setTargetCategoryId] = useState('')
+  const [feedMoveError, setFeedMoveError] = useState<string | null>(null)
 
   const requestVersionRef = useRef(0)
   const loadingMoreRef = useRef(false)
@@ -354,6 +381,136 @@ function App() {
     }
   }
 
+  const handleConfirmDeleteCategory = async () => {
+    if (!deletingCategoryId || isDeletingCategory) return
+
+    setIsDeletingCategory(true)
+    setCategoryDeleteError(null)
+
+    try {
+      await handleDeleteCategory(deletingCategoryId)
+      setDeletingCategoryId(null)
+    } catch (error) {
+      setCategoryDeleteError(
+        error instanceof Error
+          ? error.message
+          : 'Could not delete the category. Please try again.',
+      )
+    } finally {
+      setIsDeletingCategory(false)
+    }
+  }
+
+  const handleConfirmDeleteFeed = async () => {
+    if (!deletingFeedId || isDeletingFeed) return
+
+    setIsDeletingFeed(true)
+    setFeedDeleteError(null)
+
+    try {
+      await handleDeleteFeed(deletingFeedId)
+      setDeletingFeedId(null)
+    } catch (error) {
+      setFeedDeleteError(
+        error instanceof Error
+          ? error.message
+          : 'Could not delete the feed. Please try again.',
+      )
+    } finally {
+      setIsDeletingFeed(false)
+    }
+  }
+
+  const handleConfirmRenameFeed = async () => {
+    const trimmedName = feedName.trim()
+
+    if (!editingFeedId || !trimmedName || isUpdatingFeed) return
+
+    setIsUpdatingFeed(true)
+    setFeedEditError(null)
+
+    try {
+      await handleUpdateFeed(editingFeedId, { name: trimmedName })
+      setIsEditFeedDialogOpen(false)
+      setEditingFeedId(null)
+    } catch (error) {
+      setFeedEditError(
+        error instanceof Error
+          ? error.message
+          : 'Could not rename the feed. Please try again.',
+      )
+    } finally {
+      setIsUpdatingFeed(false)
+    }
+  }
+
+  const handleConfirmMoveFeed = async () => {
+    if (!movingFeedId || isUpdatingFeed) return
+
+    setIsUpdatingFeed(true)
+    setFeedMoveError(null)
+
+    try {
+      await handleUpdateFeed(movingFeedId, {
+        category_id: targetCategoryId || null,
+      })
+
+      setIsMoveFeedDialogOpen(false)
+      setMovingFeedId(null)
+    } catch (error) {
+      setFeedMoveError(
+        error instanceof Error
+          ? error.message
+          : 'Could not move the feed. Please try again.',
+      )
+    } finally {
+      setIsUpdatingFeed(false)
+    }
+  }
+
+  const handleOpenAddCategory = () => {
+    setIsAddCategoryDialogOpen(true)
+  }
+
+  const handleOpenRenameCategory = (category: Category) => {
+    setEditingCategoryId(category.id)
+    setIsEditCategoryDialogOpen(true)
+  }
+
+  const handleOpenDeleteCategory = (category: Category) => {
+    setCategoryDeleteError(null)
+    setDeletingCategoryId(category.id)
+  }
+
+  const handleOpenGlobalAddFeed = () => {
+    setSelectedCategoryId(null)
+    setIsAddFeedDialogOpen(true)
+  }
+
+  const handleOpenAddFeed = (categoryId: string) => {
+    setSelectedCategoryId(categoryId)
+    setIsAddFeedDialogOpen(true)
+  }
+
+  const handleOpenRenameFeed = (source: Source) => {
+    setEditingFeedId(source.id)
+    setFeedName(source.name)
+    setFeedEditError(null)
+    setIsEditFeedDialogOpen(true)
+  }
+
+  const handleOpenMoveFeed = (source: Source) => {
+    setMovingFeedId(source.id)
+    setTargetCategoryId('')
+    setFeedMoveError(null)
+    setIsMoveFeedDialogOpen(true)
+  }
+
+  const handleOpenDeleteFeed = (source: Source) => {
+    setFeedDeleteError(null)
+    setDeletingFeedId(source.id)
+  }
+
   const updateArticleState = async (
     articleId: string,
     changes: Partial<Pick<Article, 'is_read' | 'is_starred'>>,
@@ -431,50 +588,104 @@ function App() {
         : articles
 
   return (
-    <MainLayout
-      selectedItem={selectedItem}
-      onSelectItem={setSelectedItem}
-      categories={categories}
-      sources={sources}
-      onAddCategory={handleAddCategory}
-      onAddFeed={handleAddFeed}
-      onDeleteFeed={handleDeleteFeed}
-      onUpdateFeed={handleUpdateFeed}
-      onUpdateCategory={handleUpdateCategory}
-      onDeleteCategory={handleDeleteCategory}
-    >
-      <div className="px-8 py-7">
-        <div className="mb-5 w-full">
-          <h1 className="text-xl font-semibold tracking-tight">
-            {title}
-          </h1>
-        </div>
+    <>
+      <MainLayout
+        selectedItem={selectedItem}
+        onSelectItem={setSelectedItem}
+        categories={categories}
+        sources={sources}
+        onOpenAddCategory={handleOpenAddCategory}
+        onOpenGlobalAddFeed={handleOpenGlobalAddFeed}
+        onOpenRenameCategory={handleOpenRenameCategory}
+        onOpenDeleteCategory={handleOpenDeleteCategory}
+        onOpenAddFeed={handleOpenAddFeed}
+        onOpenRenameFeed={handleOpenRenameFeed}
+        onOpenMoveFeed={handleOpenMoveFeed}
+        onOpenDeleteFeed={handleOpenDeleteFeed}
+      >
+        <div className="px-8 py-7">
+          <div className="mb-5 w-full">
+            <h1 className="text-xl font-semibold tracking-tight">
+              {title}
+            </h1>
+          </div>
 
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">
-            Loading articles…
-          </p>
-        ) : error ? (
-          <p className="text-sm text-destructive">{error}</p>
-        ) : (
-          <ArticleList
-            articles={visibleArticles}
-            sources={sources}
-            onSelectFeed={setSelectedItem}
-            onSetRead={(articleId, isRead) =>
-              updateArticleState(articleId, { is_read: isRead })
-            }
-            onSetStarred={(articleId, isStarred) =>
-              updateArticleState(articleId, { is_starred: isStarred })
-            }
-            onLoadMore={loadMoreArticles}
-            hasMore={hasMore}
-            isLoadingMore={isLoadingMore}
-            loadMoreError={currentLoadMoreError}
-          />
-        )}
-      </div>
-    </MainLayout>
+          {isLoading ? (
+            <p className="text-sm text-muted-foreground">
+              Loading articles…
+            </p>
+          ) : error ? (
+            <p className="text-sm text-destructive">{error}</p>
+          ) : (
+            <ArticleList
+              articles={visibleArticles}
+              sources={sources}
+              onSelectFeed={setSelectedItem}
+              onSetRead={(articleId, isRead) =>
+                updateArticleState(articleId, { is_read: isRead })
+              }
+              onSetStarred={(articleId, isStarred) =>
+                updateArticleState(articleId, { is_starred: isStarred })
+              }
+              onLoadMore={loadMoreArticles}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              loadMoreError={currentLoadMoreError}
+            />
+          )}
+        </div>
+      </MainLayout>
+
+      <CategoryDialogs
+        categories={categories}
+        isAddDialogOpen={isAddCategoryDialogOpen}
+        setIsAddDialogOpen={setIsAddCategoryDialogOpen}
+        isEditDialogOpen={isEditCategoryDialogOpen}
+        setIsEditDialogOpen={setIsEditCategoryDialogOpen}
+        editingCategoryId={editingCategoryId}
+        deletingCategoryId={deletingCategoryId}
+        setDeletingCategoryId={setDeletingCategoryId}
+        deleteError={categoryDeleteError}
+        setDeleteError={setCategoryDeleteError}
+        isDeletingCategory={isDeletingCategory}
+        onAddCategory={handleAddCategory}
+        onUpdateCategory={handleUpdateCategory}
+        onConfirmDeleteCategory={handleConfirmDeleteCategory}
+      />
+
+      <FeedDialogs
+        categories={categories}
+        sources={sources}
+        isAddFeedDialogOpen={isAddFeedDialogOpen}
+        setIsAddFeedDialogOpen={setIsAddFeedDialogOpen}
+        selectedCategoryId={selectedCategoryId}
+        onAddFeed={handleAddFeed}
+        isEditFeedDialogOpen={isEditFeedDialogOpen}
+        setIsEditFeedDialogOpen={setIsEditFeedDialogOpen}
+        setEditingFeedId={setEditingFeedId}
+        feedName={feedName}
+        setFeedName={setFeedName}
+        feedEditError={feedEditError}
+        setFeedEditError={setFeedEditError}
+        isUpdatingFeed={isUpdatingFeed}
+        onRenameFeed={handleConfirmRenameFeed}
+        isMoveFeedDialogOpen={isMoveFeedDialogOpen}
+        setIsMoveFeedDialogOpen={setIsMoveFeedDialogOpen}
+        movingFeedId={movingFeedId}
+        setMovingFeedId={setMovingFeedId}
+        targetCategoryId={targetCategoryId}
+        setTargetCategoryId={setTargetCategoryId}
+        feedMoveError={feedMoveError}
+        setFeedMoveError={setFeedMoveError}
+        onMoveFeed={handleConfirmMoveFeed}
+        deletingFeedId={deletingFeedId}
+        setDeletingFeedId={setDeletingFeedId}
+        feedDeleteError={feedDeleteError}
+        setFeedDeleteError={setFeedDeleteError}
+        isDeletingFeed={isDeletingFeed}
+        onDeleteFeed={handleConfirmDeleteFeed}
+      />
+    </>
   )
 }
 
